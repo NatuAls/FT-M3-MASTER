@@ -22,3 +22,43 @@ var beatles=[{
   profilePic:"http://cp91279.biography.com/BIO_Bio-Shorts_0_Ringo-Starr_SF_HD_768x432-16x9.jpg"
 }
 ]
+
+http.createServer((req, res) => {
+
+  const beatleName = req.url.split('/').pop().replace('%20', ' ');
+
+  if(req.url === '/'){
+    let myHtml = fs.readFileSync(__dirname + '/index.html');
+      return res
+        .writeHead(200, {'Content-Type':'text/html'})
+        .end(myHtml);
+  }
+  
+  if(req.url === '/api'){
+    return res
+      .writeHead(200, {'Content-Type':'application/json'})
+      .end(JSON.stringify(beatles));
+  }
+
+  if(req.url.includes('/api') && beatleName){
+    let beatle = beatles.filter(e => e.name === beatleName);
+    if(!beatle.length) return res.writeHead(404).end('Error 404: Not Found');
+    return res
+      .writeHead(200, {'Content-Type':'application/json'})
+      .end(JSON.stringify(beatle[0]));
+  }
+
+  if(req.url.includes('/card') && beatleName){
+    let beatle = beatles.filter(e => e.name === beatleName);
+    if(!beatle.length) return res.writeHead(404).end('Error 404: Not Found');
+
+    let myHtml2 = fs.readFileSync(__dirname + '/beatle.html', 'utf8');
+    myHtml2 = myHtml2.replace('{img}', beatle[0].profilePic);
+    myHtml2 = myHtml2.replace(/{name}/gi, beatle[0].name);
+    myHtml2 = myHtml2.replace('{birth}', beatle[0].birthdate);
+    
+    return res
+      .writeHead(200, {'Content-Type':'text/html'})
+      .end(myHtml2);
+  }
+}).listen(3001, 'localhost');
