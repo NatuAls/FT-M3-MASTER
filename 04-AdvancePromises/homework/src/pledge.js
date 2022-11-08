@@ -32,7 +32,22 @@ class $Promise{
 
         if(this._handlerGroups.length){
            this._handlerGroups.forEach(e => {
-            e.successCb(data);
+                if(typeof e.successCb === 'function') {
+                    try {
+                        let result = e.successCb(data)
+                        if(result instanceof $Promise){
+                            result.then(
+                                success => e.downstreamPromise._internalResolve(success),
+                                err => e.downstreamPromise._internalReject(err)
+                            )
+                        }
+                        else e.downstreamPromise._internalResolve(result)
+                    }
+                    catch(exception){
+                        e.downstreamPromise._internalReject(exception)
+                    }
+                }
+                else e.downstreamPromise._internalResolve(data)
            });
         }
 
@@ -47,7 +62,21 @@ class $Promise{
 
         if(this._handlerGroups.length){
             this._handlerGroups.forEach(e => {
-             e.errorCb(data)
+                if(typeof e.errorCb === 'function') {
+                    try{
+                        let result = e.errorCb(data)
+                        if(result instanceof $Promise){
+                            result.then(
+                                success => e.downstreamPromise._internalResolve(success),
+                                err => e.downstreamPromise._internalReject(err)
+                            )
+                        }else e.downstreamPromise._internalResolve(result)
+                    }
+                    catch(exception){
+                        e.downstreamPromise._internalReject(exception)
+                    }
+                }
+                else e.downstreamPromise._internalReject(data);
             });
         }
         
@@ -57,18 +86,22 @@ class $Promise{
     _handlerGroups = [];
 
     then = (successCb, errorCb) => {
+        let downstreamPromise = new $Promise(() => {})
+        
         if(typeof successCb === 'function' && typeof errorCb === 'function'){
-            this._handlerGroups.push({successCb, errorCb});
+            this._handlerGroups.push({successCb, errorCb, downstreamPromise});
         } else if(typeof successCb !== 'function' && typeof errorCb !== 'function') {
-            this._handlerGroups.push({successCb:false, errorCb:false});
+            this._handlerGroups.push({successCb:false, errorCb:false, downstreamPromise});
         } else if(typeof successCb !== 'function'){
-            this._handlerGroups.push({successCb:false, errorCb});
+            this._handlerGroups.push({successCb:false, errorCb, downstreamPromise});
         } else {
-            this._handlerGroups.push({successCb, errorCb:false});
+            this._handlerGroups.push({successCb, errorCb:false, downstreamPromise});
         }
-
-        if(this._state === 'fulfilled') return successCb(this._value);
-        if(this._state === 'rejected' && !this._handlerGroups[0].errorCb === false) return errorCb(this._value);
+        
+        if(this._state === 'fulfilled') this._internalResolve(this._value);
+        if(this._state === 'rejected') this._internalReject(this._value);
+        
+        return downstreamPromise;
     }
 
     catch = func => this.then(null, func);
